@@ -12,7 +12,13 @@ import { dragElement } from '../../../RossAscends-mods.js';
 import { loadMovingUIState } from '../../../power-user.js';
 import { t } from '../../../i18n.js';
 import { tabMappings, themeCustomSettings } from './src/config/theme-settings.js';
-import { settingsKey, getSettings as getExtensionSettings, saveSettings as saveExtensionSettings } from './src/services/settings-service.js';
+import {
+    settingsKey,
+    getActivePresetName,
+    setActivePresetName,
+    getSettings as getExtensionSettings,
+    saveSettings as saveExtensionSettings,
+} from './src/services/settings-service.js';
 import { initializeSlashCommands } from './src/services/slash-commands.js';
 import { initExtension } from './src/bootstrap/init-extension.js';
 import { registerDomReadyHandler } from './src/bootstrap/lifecycle-hooks.js';
@@ -1010,9 +1016,10 @@ function setupPublicMoonlitApi() {
             getActive: function() {
                 const context = SillyTavern.getContext();
                 const settings = getExtensionSettings(context);
+                const activePreset = getActivePresetName(settings);
                 return {
-                    name: settings.activePreset,
-                    settings: settings.presets[settings.activePreset] || {}
+                    name: activePreset,
+                    settings: settings.presets[activePreset] || {}
                 };
             },
 
@@ -1065,8 +1072,8 @@ function setupPublicMoonlitApi() {
                     return false;
                 }
 
-                if (settings.activePreset === name) {
-                    settings.activePreset = 'Default';
+                if (getActivePresetName(settings) === name) {
+                    setActivePresetName(settings, 'Default');
                     applyPresetToSettings('Default');
                 }
 

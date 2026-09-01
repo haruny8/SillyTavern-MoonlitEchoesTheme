@@ -95,6 +95,9 @@ If you’re using SillyTavern via Termux, here’s how you can modify `config.ya
 
 # Usage Guide
 
+### Desktop and Mobile Presets
+Moonlit Echoes remembers the selected SillyTavern UI theme and Moonlit Echoes preset separately for desktop and mobile devices. Names ending in ` - PC` and ` - MOBILE` are paired automatically the first time the extension loads. After that, switching devices restores the matching saved selections without requiring both menus to be changed manually.
+
 ## How to Use the Moonlit Echoes Theme Preset?
 The Moonlit Echoes theme preset is partially synced with the UI themes in SillyTavern. If there are matching options in the menu, switching either one will sync the settings accordingly.
 

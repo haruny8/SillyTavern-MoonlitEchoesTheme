@@ -1,4 +1,5 @@
 import { themeCustomSettings as defaultThemeCustomSettings } from '../config/theme-settings.js';
+import { getActivePresetName, setActivePresetName } from '../services/settings-service.js';
 
 const defaultTranslate = (strings, ...values) => strings.reduce((result, part, index) => {
     const value = index < values.length ? values[index] : '';
@@ -70,7 +71,7 @@ export function createPresetManagerUI(container, settingsOverride) {
         const option = document.createElement('option');
         option.value = presetName;
         option.textContent = presetName;
-        option.selected = settings.activePreset === presetName;
+        option.selected = getActivePresetName(settings) === presetName;
         presetSelector.appendChild(option);
     }
 
@@ -163,7 +164,7 @@ function handlePresetFileSelected(event) {
 
             const presetName = jsonData.presetName;
             settings.presets[presetName] = jsonData.settings;
-            settings.activePreset = presetName;
+            setActivePresetName(settings, presetName);
 
             applyPresetToSettings(presetName);
             updatePresetSelector();
@@ -193,7 +194,7 @@ export function exportActivePreset() {
     const { settings } = getContextAndSettings();
     if (!settings) return;
 
-    const presetName = settings.activePreset;
+    const presetName = getActivePresetName(settings);
     const preset = settings.presets?.[presetName];
 
     if (!preset) {
@@ -227,7 +228,7 @@ export function updateCurrentPreset() {
     const { context, settings } = getContextAndSettings();
     if (!settings) return;
 
-    const presetName = settings.activePreset;
+    const presetName = getActivePresetName(settings);
 
     if (presetName === 'Default' && Object.keys(settings.presets).length > 1) {
         if (!confirm(managerConfig.t`Are you sure you want to update the Default preset? This will overwrite the original settings.`)) {
@@ -289,7 +290,7 @@ function createNewPreset(presetName, context, settings) {
     });
 
     settings.presets[presetName] = currentSettings;
-    settings.activePreset = presetName;
+    setActivePresetName(settings, presetName);
 
     updatePresetSelector();
     syncMoonlitPresetsWithThemeList();
@@ -301,7 +302,7 @@ export function deleteCurrentPreset() {
     const { context, settings } = getContextAndSettings();
     if (!settings) return;
 
-    const presetName = settings.activePreset;
+    const presetName = getActivePresetName(settings);
 
     if (Object.keys(settings.presets).length <= 1) {
         toastr.error(managerConfig.t`Cannot delete the only preset`);
@@ -332,7 +333,7 @@ export function deleteCurrentPreset() {
             }
 
             delete settings.presets[presetName];
-            settings.activePreset = 'Default';
+            setActivePresetName(settings, 'Default');
 
             applyPresetToSettings('Default');
             updatePresetSelector();
@@ -352,7 +353,7 @@ export function loadPreset(presetName) {
         return;
     }
 
-    settings.activePreset = presetName;
+    setActivePresetName(settings, presetName);
     applyPresetToSettings(presetName);
     updatePresetSelector();
     managerConfig.updateThemeSelector(presetName);
@@ -364,12 +365,16 @@ export function applyActivePreset() {
     const { settings } = getContextAndSettings();
     if (!settings) return;
 
-    if (!settings.activePreset || !settings.presets[settings.activePreset]) {
+    let activePreset = getActivePresetName(settings);
+    if (!activePreset || !settings.presets[activePreset]) {
         const firstPreset = Object.keys(settings.presets || {})[0] || 'Default';
-        settings.activePreset = firstPreset;
+        activePreset = firstPreset;
+        setActivePresetName(settings, activePreset);
     }
 
-    applyPresetToSettings(settings.activePreset);
+    setActivePresetName(settings, activePreset);
+
+    applyPresetToSettings(activePreset);
 }
 
 export function applyPresetToSettings(presetName) {
@@ -415,7 +420,7 @@ export function updatePresetSelector() {
         const option = document.createElement('option');
         option.value = presetName;
         option.textContent = presetName;
-        option.selected = settings.activePreset === presetName;
+        option.selected = getActivePresetName(settings) === presetName;
         presetSelector.appendChild(option);
     }
 }
@@ -438,7 +443,7 @@ export function handleMoonlitPresetImport(jsonData) {
     }
 
     settings.presets[presetName] = jsonData.settings;
-    settings.activePreset = presetName;
+    setActivePresetName(settings, presetName);
 
     applyPresetToSettings(presetName);
     updatePresetSelector();
@@ -472,7 +477,7 @@ export function syncMoonlitPresetsWithThemeList() {
     }
 
     if (settings.enabled) {
-        const activePreset = settings.activePreset;
+        const activePreset = getActivePresetName(settings);
         let optionExists = false;
         for (let i = 0; i < themeSelector.options.length; i++) {
             if (themeSelector.options[i].value === activePreset) {

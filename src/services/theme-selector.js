@@ -1,5 +1,12 @@
 import { addThemeButtonsHint } from './hints.js';
-import { getSettings as getExtensionSettings } from './settings-service.js';
+import {
+    activeThemeKeys,
+    getActivePresetName,
+    getActiveThemeName,
+    getSettings as getExtensionSettings,
+    resolvePresetName,
+    setActiveThemeName,
+} from './settings-service.js';
 import {
     importPreset,
     exportActivePreset,
@@ -11,6 +18,7 @@ import {
 } from '../ui/preset-manager.js';
 
 const MOONLIT_LISTENER_KEY = '__moonlitEchoesListeners';
+let restoringActiveTheme = false;
 
 export function integrateWithThemeSelector() {
     const themeSelector = document.getElementById('themes');
@@ -26,6 +34,8 @@ export function integrateWithThemeSelector() {
     const importFileInput = document.getElementById('ui_preset_import_file');
 
     attachMoonlitListener(themeSelector, 'change', handleMoonlitThemeChange);
+
+    syncThemeSelectorToActiveSelections(themeSelector);
 
     if (importButton && importFileInput) {
         attachMoonlitListener(importButton, 'click', handleMoonlitImportButtonClick);
@@ -65,17 +75,18 @@ function getMoonlitSettings() {
     return getExtensionSettings(context) || {};
 }
 
-function isMoonlitPreset(presetName) {
-    if (!presetName) return false;
+function getMoonlitPresetName(presetName) {
+    if (!presetName) return undefined;
     const settings = getMoonlitSettings();
     const presets = settings.presets || {};
-    return Object.prototype.hasOwnProperty.call(presets, presetName);
+    const resolvedPresetName = resolvePresetName(settings, presetName);
+    return Object.prototype.hasOwnProperty.call(presets, resolvedPresetName) ? resolvedPresetName : undefined;
 }
 
 function isMoonlitPresetSelected() {
     const themeSelector = document.getElementById('themes');
     if (!themeSelector) return false;
-    return isMoonlitPreset(themeSelector.value);
+    return !!getMoonlitPresetName(themeSelector.value);
 }
 
 function handleMoonlitThemeChange(event) {
@@ -83,20 +94,93 @@ function handleMoonlitThemeChange(event) {
     if (!themeSelector) return;
 
     const selectedTheme = themeSelector.value;
-    if (!isMoonlitPreset(selectedTheme)) {
+    const settings = getMoonlitSettings();
+    const selectedPreset = getMoonlitPresetName(selectedTheme);
+    setActiveThemeName(settings, selectedTheme);
+
+    if (restoringActiveTheme || !selectedPreset) {
+        SillyTavern.getContext().saveSettingsDebounced();
         return;
     }
 
-    const settings = getMoonlitSettings();
-    if (settings.activePreset === selectedTheme) {
+    if (getActivePresetName(settings) === selectedPreset) {
+        SillyTavern.getContext().saveSettingsDebounced();
         return;
     }
 
     try {
-        loadPreset(selectedTheme);
+        loadPreset(selectedPreset);
     } catch (error) {
         // Error handled silently
     }
+    SillyTavern.getContext().saveSettingsDebounced();
+}
+
+function syncThemeSelectorToActiveSelections(themeSelector) {
+    const settings = getMoonlitSettings();
+    const activePreset = getActivePresetName(settings);
+    const currentTheme = themeSelector.value;
+    const themesInitialized = initializeActiveThemeSelections(settings, currentTheme, themeSelector);
+
+    if (themesInitialized) {
+        SillyTavern.getContext().saveSettingsDebounced();
+    }
+
+    const activeTheme = getActiveThemeName(settings) || activePreset;
+    if (!activeTheme) return;
+
+    const matchingOption = Array.from(themeSelector.options).find((option) => option.value === activeTheme);
+    if (!matchingOption) return;
+
+    themeSelector.value = activeTheme;
+    restoringActiveTheme = true;
+    try {
+        themeSelector.dispatchEvent(new Event('change'));
+    } finally {
+        restoringActiveTheme = false;
+    }
+}
+
+function initializeActiveThemeSelections(settings, currentTheme, themeSelector) {
+    if (!settings || !currentTheme) return false;
+
+    const availableThemes = new Set(Array.from(themeSelector.options, (option) => option.value));
+    const desktopTheme = settings[activeThemeKeys.desktop];
+    const mobileTheme = settings[activeThemeKeys.mobile];
+    let changed = false;
+
+    if (!availableThemes.has(desktopTheme)) {
+        const platformTheme = getPlatformThemeName(currentTheme, 'MOBILE', 'PC');
+        settings[activeThemeKeys.desktop] = availableThemes.has(platformTheme) ? platformTheme : currentTheme;
+        changed = true;
+    }
+
+    if (!availableThemes.has(mobileTheme)) {
+        const platformTheme = getPlatformThemeName(currentTheme, 'PC', 'MOBILE');
+        settings[activeThemeKeys.mobile] = availableThemes.has(platformTheme) ? platformTheme : currentTheme;
+        changed = true;
+    }
+
+    if (!settings[activeThemeKeys.desktop]) {
+        settings[activeThemeKeys.desktop] = currentTheme;
+        changed = true;
+    }
+
+    if (!settings[activeThemeKeys.mobile]) {
+        settings[activeThemeKeys.mobile] = currentTheme;
+        changed = true;
+    }
+
+    return changed;
+}
+
+function getPlatformThemeName(themeName, fromPlatform, toPlatform) {
+    const suffix = ` - ${fromPlatform}`;
+    if (!themeName.toUpperCase().endsWith(suffix)) {
+        return themeName;
+    }
+
+    return `${themeName.slice(0, -suffix.length)} - ${toPlatform}`;
 }
 
 function handleMoonlitImportButtonClick() {

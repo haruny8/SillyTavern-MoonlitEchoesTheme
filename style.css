@@ -3817,7 +3817,7 @@ body.hushstyle {
 .drawer-content,
 #WorldInfo {
     @media screen and (max-width: 1000px) {
-        max-height: calc(100dvh - var(--topBarBlockSize) - var(--bottomFormBlockSize)) !important;
+        max-height: calc(100dvh - var(--topBarBlockSize) - var(--bottomFormBlockSize));
         border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 50%, transparent);
     }
 }
