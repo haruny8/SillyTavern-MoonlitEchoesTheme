@@ -172,13 +172,7 @@ body.waifuMode:has(#extensionTopBar) {
         border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 25%, transparent) !important;
     }
 }
-body:has(#extensionConnectionProfiles.visible) #extensionTopBar {
-    border-radius: 10px 10px 0 0 !important;
 
-    @media screen and (max-width: 1000px) {
-        border-radius: 0 !important;
-    }
-}
 body.waifuMode:has(#extensionConnectionProfiles.visible) #extensionTopBar {
     border-radius: 10px !important;
 }
